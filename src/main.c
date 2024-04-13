@@ -148,7 +148,7 @@ int main() {
 			}
 		}
 
-		glClearColor(0.0, 1.0, 0.0, 1.0);
+		glClearColor(0.0, 0.0, 0.0, 1.0);
 		glClear(GL_COLOR_BUFFER_BIT);
 		glDrawArrays(GL_TRIANGLES, 0, 6);
 		SDL_GL_SwapWindow(window);
