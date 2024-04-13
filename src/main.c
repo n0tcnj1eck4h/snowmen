@@ -89,6 +89,9 @@ void GLAPIENTRY MessageCallback(GLenum source, GLenum type, GLuint id, GLenum se
 	fprintf(stderr, "GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s\n", (type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : ""), type, severity, message);
 }
 
+#define WINDOW_WIDTH 800
+#define WINDOW_HEIGHT 600
+
 int main() {
 	assert(SDL_Init(SDL_INIT_VIDEO) == 0);
 
@@ -96,7 +99,7 @@ int main() {
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 
-	SDL_Window* window = SDL_CreateWindow("Raymarcher", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 800, 600, SDL_WINDOW_OPENGL);
+	SDL_Window* window = SDL_CreateWindow("Raymarcher", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_OPENGL);
 	assert(window != NULL);
 
 	SDL_GLContext context = SDL_GL_CreateContext(window);
@@ -123,6 +126,11 @@ int main() {
 	GLuint vao;
 	glGenVertexArrays(1, &vao);
 	glBindVertexArray(vao);
+
+	GLuint screen_size_uniform = glGetUniformLocation(shader_program, "screen_size");
+
+	glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
+	glUniform2f(screen_size_uniform, WINDOW_WIDTH, WINDOW_HEIGHT);
 
 	SDL_Event event;
 	while (1) {
