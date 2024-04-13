@@ -2,6 +2,7 @@
 
 layout(location = 0) out vec4 color;
 uniform vec2 screen_size;
+uniform vec3 dir; // = normalize(vec3(-2.0, -2.0, -2.0));
 
 in vec2 position;
 
@@ -11,7 +12,6 @@ const float FOCAL_LENGTH = 0.1;
 const vec3 UP = vec3(0,1,0);
 
 vec3 cam = vec3(2.0, 2.0, 2.0);
-vec3 dir = normalize(vec3(-2.0, -2.0, -2.0));
 
 float sphereSDF(vec3 cam, vec3 pos, float r) {
   return distance(pos, cam) - r;

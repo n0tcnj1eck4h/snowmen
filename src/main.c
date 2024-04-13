@@ -1,9 +1,14 @@
+#include "cglm/types.h"
+#include "cglm/vec3.h"
 #include <SDL2/SDL.h>
 #include <SDL_events.h>
 #include <SDL_keycode.h>
+#include <SDL_stdinc.h>
 #include <SDL_video.h>
 #include <assert.h>
+#include <cglm/cglm.h>
 #include <glad/glad.h>
+#include <stdbool.h>
 #include <stdio.h>
 
 static char* read_entire_file(const char* filename) {
@@ -128,9 +133,17 @@ int main() {
 	glBindVertexArray(vao);
 
 	GLuint screen_size_uniform = glGetUniformLocation(shader_program, "screen_size");
-
 	glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
 	glUniform2f(screen_size_uniform, WINDOW_WIDTH, WINDOW_HEIGHT);
+
+	vec3 camera_direction = {-1, -1, -1};
+	glm_vec3_normalize(camera_direction);
+
+	GLuint camera_direction_uniform = glGetUniformLocation(shader_program, "dir");
+	glUniform3fv(camera_direction_uniform, 1, camera_direction);
+
+	bool capturing_cursor = false;
+	float sensitivity = 0.001;
 
 	SDL_Event event;
 	while (1) {
@@ -152,7 +165,25 @@ int main() {
 						printf("Shaders compiled successfully\n");
 						glUseProgram(shader_program);
 					}
+				} else if (event.key.keysym.sym == SDLK_ESCAPE) {
+					capturing_cursor = false;
+					SDL_SetRelativeMouseMode(SDL_FALSE);
 				}
+				break;
+			case SDL_MOUSEBUTTONDOWN:
+				capturing_cursor = true;
+				SDL_SetRelativeMouseMode(SDL_TRUE);
+				break;
+			case SDL_MOUSEMOTION:
+				if (!capturing_cursor)
+					break;
+				vec3 right;
+				glm_cross(camera_direction, (vec3){0, 1, 0}, right);
+				glm_vec3_normalize(right);
+				glm_vec3_rotate(camera_direction, -event.motion.yrel * sensitivity, right);
+				glm_vec3_rotate(camera_direction, -event.motion.xrel * sensitivity, (vec3){0, 1, 0});
+				glUniform3fv(camera_direction_uniform, 1, camera_direction);
+				break;
 			}
 		}
 
