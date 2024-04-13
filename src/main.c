@@ -1,8 +1,10 @@
 #include <SDL2/SDL.h>
 #include <SDL_events.h>
+#include <SDL_keycode.h>
 #include <SDL_video.h>
 #include <assert.h>
 #include <glad/glad.h>
+#include <stdio.h>
 
 static char* read_entire_file(const char* filename) {
 	FILE* file = fopen(filename, "r");
@@ -128,6 +130,21 @@ int main() {
 			switch (event.type) {
 			case SDL_QUIT:
 				goto exit;
+			case SDL_KEYDOWN:
+				if (event.key.keysym.sym == SDLK_r) {
+					printf("Recompiling shaders...\n");
+					glUseProgram(0);
+					glDeleteProgram(shader_program);
+					GLuint vertex_shader = shader_from_file("vertex_shader.glsl", GL_VERTEX_SHADER);
+					GLuint fragment_shader = shader_from_file("fragment_shader.glsl", GL_FRAGMENT_SHADER);
+					shader_program = create_shader_program(vertex_shader, fragment_shader);
+					glDeleteShader(vertex_shader);
+					glDeleteShader(fragment_shader);
+					if (shader_program != -1) {
+						printf("Shaders compiled successfully\n");
+						glUseProgram(shader_program);
+					}
+				}
 			}
 		}
 
