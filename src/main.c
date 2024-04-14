@@ -2,103 +2,24 @@
 #include "cglm/vec3.h"
 #include <SDL2/SDL.h>
 #include <SDL_events.h>
-#include <SDL_keycode.h>
-#include <SDL_stdinc.h>
-#include <SDL_video.h>
+#include <SDL_keyboard.h>
+#include <SDL_scancode.h>
 #include <assert.h>
 #include <cglm/cglm.h>
 #include <glad/glad.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 
-static char* read_entire_file(const char* filename) {
-	FILE* file = fopen(filename, "r");
-	if (!file) {
-		fprintf(stderr, "Failed to open shader file %s\n", filename);
-		return NULL;
-	}
-
-	fseek(file, 0, SEEK_END);
-	long length = ftell(file);
-	fseek(file, 0, SEEK_SET);
-
-	char* buffer = (char*)malloc(length + 1);
-	if (!buffer) {
-		fprintf(stderr, "Failed to allocate memory for shader source\n");
-		fclose(file);
-		return NULL;
-	}
-
-	fread(buffer, 1, length, file);
-	buffer[length] = '\0';
-	fclose(file);
-	return buffer;
-}
-
-static GLuint compile_shader(GLenum shaderType, const char* shaderSource) {
-	GLuint shader = glCreateShader(shaderType);
-	glShaderSource(shader, 1, &shaderSource, NULL);
-	glCompileShader(shader);
-
-	GLint success;
-	glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
-	if (!success) {
-		GLint max_length = 0;
-		glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &max_length);
-		char* info_log = (char*)malloc(max_length);
-		glGetShaderInfoLog(shader, max_length, NULL, info_log);
-		fprintf(stderr, "Shader compilation failed: %s\n", info_log);
-		free(info_log);
-		glDeleteShader(shader);
-		return 0;
-	}
-
-	return shader;
-}
-
-static GLuint create_shader_program(GLuint vertex_shader, GLuint fragment_shader) {
-	GLuint program = glCreateProgram();
-	glAttachShader(program, vertex_shader);
-	glAttachShader(program, fragment_shader);
-	glLinkProgram(program);
-
-	GLint success;
-	glGetProgramiv(program, GL_LINK_STATUS, &success);
-	if (!success) {
-		GLint max_length = 0;
-		glGetProgramiv(program, GL_INFO_LOG_LENGTH, &max_length);
-		char* info_log = (char*)malloc(max_length);
-		glGetProgramInfoLog(program, max_length, NULL, info_log);
-		fprintf(stderr, "Shader program linking failed: %s\n", info_log);
-		free(info_log);
-		glDeleteShader(vertex_shader);
-		glDeleteShader(fragment_shader);
-		glDeleteProgram(program);
-		return -1;
-	}
-
-	return program;
-}
-
-static GLuint shader_from_file(const char* path, GLenum shader_type) {
-	char* shader_source = read_entire_file(path);
-	if (shader_source == NULL) {
-		return -1;
-	}
-	GLuint shader = compile_shader(shader_type, shader_source);
-	free(shader_source);
-	return shader;
-}
-
-void GLAPIENTRY MessageCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam) {
-	fprintf(stderr, "GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s\n", (type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : ""), type, severity, message);
-}
+#include "utils.h"
 
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
 
+#define UP ((vec3){0, 1, 0})
+
 int main() {
-	assert(SDL_Init(SDL_INIT_VIDEO) == 0);
+	assert(SDL_Init(SDL_INIT_EVERYTHING) == 0);
 
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
@@ -118,7 +39,7 @@ int main() {
 	SDL_GL_MakeCurrent(window, context);
 
 	glEnable(GL_DEBUG_OUTPUT);
-	glDebugMessageCallback(MessageCallback, 0);
+	glDebugMessageCallback(gl_message_callback, 0);
 
 	GLuint vertex_shader = shader_from_file("vertex_shader.glsl", GL_VERTEX_SHADER);
 	GLuint fragment_shader = shader_from_file("fragment_shader.glsl", GL_FRAGMENT_SHADER);
@@ -127,32 +48,40 @@ int main() {
 	glDeleteShader(fragment_shader);
 
 	glUseProgram(shader_program);
+	glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
 
 	GLuint vao;
 	glGenVertexArrays(1, &vao);
 	glBindVertexArray(vao);
 
-	GLuint screen_size_uniform = glGetUniformLocation(shader_program, "screen_size");
-	glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
-	glUniform2f(screen_size_uniform, WINDOW_WIDTH, WINDOW_HEIGHT);
-
-	vec3 camera_direction = {-1, -1, -1};
-	glm_vec3_normalize(camera_direction);
-
+	vec3 camera_direction = {0, 0, 1};
 	GLuint camera_direction_uniform = glGetUniformLocation(shader_program, "dir");
 	glUniform3fv(camera_direction_uniform, 1, camera_direction);
 
-	bool capturing_cursor = false;
-	float sensitivity = 0.001;
+	vec3 camera_position = {0, 0, 0};
+	GLuint camera_position_uniform = glGetUniformLocation(shader_program, "cam_uniform");
+	glUniform3fv(camera_position_uniform, 1, camera_position);
+
+	bool capturing_input = false;
+	float sensitivity = 0.005;
+	float camera_speed = 1.0;
+	float last_time = (float)SDL_GetTicks64();
+
+	const uint8_t* keyboard_state = SDL_GetKeyboardState(NULL);
 
 	SDL_Event event;
 	while (1) {
+		uint64_t time = (float)SDL_GetTicks64();
+		float delta = (time - last_time) / 1000.0f;
+		last_time = time;
+
 		while (SDL_PollEvent(&event) != 0) {
 			switch (event.type) {
 			case SDL_QUIT:
 				goto exit;
 			case SDL_KEYDOWN:
-				if (event.key.keysym.sym == SDLK_r) {
+				switch (event.key.keysym.sym) {
+				case SDLK_r:
 					printf("Recompiling shaders...\n");
 					glUseProgram(0);
 					glDeleteProgram(shader_program);
@@ -164,28 +93,85 @@ int main() {
 					if (shader_program != -1) {
 						printf("Shaders compiled successfully\n");
 						glUseProgram(shader_program);
+						camera_position_uniform = glGetUniformLocation(shader_program, "cam_uniform");
+						camera_direction_uniform = glGetUniformLocation(shader_program, "dir");
+						glUniform3fv(camera_position_uniform, 1, camera_position);
+						glUniform3fv(camera_direction_uniform, 1, camera_direction);
 					}
-				} else if (event.key.keysym.sym == SDLK_ESCAPE) {
-					capturing_cursor = false;
+					break;
+				case SDLK_ESCAPE:
+					capturing_input = false;
 					SDL_SetRelativeMouseMode(SDL_FALSE);
+					break;
 				}
 				break;
 			case SDL_MOUSEBUTTONDOWN:
-				capturing_cursor = true;
+				capturing_input = true;
 				SDL_SetRelativeMouseMode(SDL_TRUE);
 				break;
 			case SDL_MOUSEMOTION:
-				if (!capturing_cursor)
+				if (!capturing_input)
 					break;
 				vec3 right;
-				glm_cross(camera_direction, (vec3){0, 1, 0}, right);
+				glm_cross(camera_direction, UP, right);
 				glm_vec3_normalize(right);
 				glm_vec3_rotate(camera_direction, -event.motion.yrel * sensitivity, right);
-				glm_vec3_rotate(camera_direction, -event.motion.xrel * sensitivity, (vec3){0, 1, 0});
+				glm_vec3_rotate(camera_direction, -event.motion.xrel * sensitivity, UP);
 				glUniform3fv(camera_direction_uniform, 1, camera_direction);
+				break;
+			case SDL_MOUSEWHEEL:
+				camera_speed += (float)event.wheel.y / 5.0;
+				if (camera_speed < 1.0)
+					camera_speed = 1.0;
+				if (camera_speed > 10.0)
+					camera_speed = 10.0;
 				break;
 			}
 		}
+
+		if (capturing_input) {
+			if (keyboard_state[SDL_SCANCODE_W]) {
+				vec3 delta_movement;
+				glm_vec3_scale(camera_direction, delta * camera_speed, delta_movement);
+				glm_vec3_add(camera_position, delta_movement, camera_position);
+			}
+
+			if (keyboard_state[SDL_SCANCODE_S]) {
+				vec3 delta_movement;
+				glm_vec3_scale(camera_direction, -delta * camera_speed, delta_movement);
+				glm_vec3_add(camera_position, delta_movement, camera_position);
+			}
+
+			if (keyboard_state[SDL_SCANCODE_D]) {
+				vec3 right, delta_movement;
+				glm_vec3_cross(camera_direction, UP, right);
+				glm_normalize(right);
+				glm_vec3_scale(right, delta * camera_speed, delta_movement);
+				glm_vec3_add(camera_position, delta_movement, camera_position);
+			}
+
+			if (keyboard_state[SDL_SCANCODE_A]) {
+				vec3 right, delta_movement;
+				glm_vec3_cross(camera_direction, UP, right);
+				glm_normalize(right);
+				glm_vec3_scale(right, -delta * camera_speed, delta_movement);
+				glm_vec3_add(camera_position, delta_movement, camera_position);
+			}
+
+			if (keyboard_state[SDL_SCANCODE_SPACE]) {
+				vec3 delta_movement;
+				glm_vec3_scale(UP, delta * camera_speed, delta_movement);
+				glm_vec3_add(camera_position, delta_movement, camera_position);
+			}
+
+			if (keyboard_state[SDL_SCANCODE_LCTRL]) {
+				vec3 delta_movement;
+				glm_vec3_scale(UP, -delta * camera_speed, delta_movement);
+				glm_vec3_add(camera_position, delta_movement, camera_position);
+			}
+		}
+
+		glUniform3fv(camera_position_uniform, 1, camera_position);
 
 		glClearColor(0.0, 0.0, 0.0, 1.0);
 		glClear(GL_COLOR_BUFFER_BIT);
@@ -194,6 +180,7 @@ int main() {
 	}
 
 exit:
+	glDeleteVertexArrays(1, &vao);
 	glDeleteProgram(shader_program);
 	SDL_GL_DeleteContext(context);
 	SDL_DestroyWindow(window);

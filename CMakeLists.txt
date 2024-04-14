@@ -5,7 +5,7 @@ project(TutorialProject)
 set(SDL2_DIR "${CMAKE_CURRENT_SOURCE_DIR}/SDL2")
 find_package(SDL2 REQUIRED)
 
-add_executable(raymarcher src/main.c src/glad.c)
+add_executable(raymarcher src/main.c src/glad.c src/utils.c)
 
 target_link_libraries(raymarcher PRIVATE m)
 
