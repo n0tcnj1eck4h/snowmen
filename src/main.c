@@ -33,6 +33,9 @@ int main() {
 	glDeleteShader(vertex_shader);
 	glDeleteShader(fragment_shader);
 
+	if (!shader_program)
+		goto exit;
+
 	glUseProgram(shader_program);
 	glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
 

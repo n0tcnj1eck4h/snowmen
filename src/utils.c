@@ -63,7 +63,7 @@ GLuint create_shader_program(GLuint vertex_shader, GLuint fragment_shader) {
 		glDeleteShader(vertex_shader);
 		glDeleteShader(fragment_shader);
 		glDeleteProgram(program);
-		return -1;
+		return 0;
 	}
 
 	return program;
