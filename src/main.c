@@ -24,7 +24,7 @@ int main() {
 
 	// Debug message callback będzie wypisywał na konsolę błędy OpenGL
 	glEnable(GL_DEBUG_OUTPUT);
-	glDebugMessageCallback(gl_message_callback, 0);
+	glDebugMessageCallback(gl_message_callback, NULL);
 
 	// Kompilowanie shaderów
 	GLuint vertex_shader = shader_from_file("vertex_shader.glsl", GL_VERTEX_SHADER);
@@ -45,7 +45,7 @@ int main() {
 	SDL_Event event;
 	while (1) {
 		// Obsługa wydarzeń okna
-		while (SDL_PollEvent(&event) != 0) {
+		while (SDL_PollEvent(&event)) {
 			switch (event.type) {
 			case SDL_QUIT:
 				goto exit;
