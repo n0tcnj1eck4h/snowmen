@@ -10,7 +10,7 @@
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
 
-int main() {
+int main(int argc, char* argv[]) {
 	// Inicjalizacja biblioteki SDL2
 	SDL_Init(SDL_INIT_EVERYTHING);
 
