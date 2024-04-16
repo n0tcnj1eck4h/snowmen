@@ -1,4 +1,5 @@
 #include "utils.h"
+#include <string.h>
 
 char* read_entire_file(const char* filename) {
 	FILE* file = fopen(filename, "r");
@@ -12,6 +13,7 @@ char* read_entire_file(const char* filename) {
 	fseek(file, 0, SEEK_SET);
 
 	char* buffer = (char*)malloc(length + 1);
+	memset(buffer, 0, length);
 	if (!buffer) {
 		fprintf(stderr, "Failed to allocate memory for shader source\n");
 		fclose(file);
