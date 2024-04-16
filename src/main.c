@@ -1,3 +1,4 @@
+#include <GLES2/gl2.h>
 #include <SDL2/SDL.h>
 #include <cglm/cglm.h>
 #include <glad/glad.h>
@@ -5,6 +6,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#include "cglm/vec3.h"
 #include "utils.h"
 
 #define WINDOW_WIDTH 800
@@ -36,6 +38,12 @@ int main(int argc, char* argv[]) {
 	if (!shader_program)
 		goto exit;
 
+	GLuint camera_position_uniform = glGetUniformLocation(shader_program, "camera_position");
+	GLuint camera_direction_uniform = glGetUniformLocation(shader_program, "camera_direction");
+
+	vec3 camera_position = {0.0, 0.0, -2.0};
+	vec3 camera_direction = {0.0, 0.0, 1.0};
+
 	glUseProgram(shader_program);
 	glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
 
@@ -47,7 +55,6 @@ int main(int argc, char* argv[]) {
 	// Główna pętla programu
 	SDL_Event event;
 	while (1) {
-		// Obsługa wydarzeń okna
 		while (SDL_PollEvent(&event)) {
 			switch (event.type) {
 			case SDL_QUIT:
@@ -55,10 +62,13 @@ int main(int argc, char* argv[]) {
 			}
 		}
 
-		// Tutaj będzie aktualizacja stanu programu
-		// ----------------------------------------
+#define UP ((vec3){0, 1, 0})
+		glm_vec3_rotate(camera_position, 0.01, UP);
+		glm_vec3_rotate(camera_direction, 0.01, UP);
 
-		// Renderowanie kolejnej klatki
+		glUniform3fv(camera_position_uniform, 1, camera_position);
+		glUniform3fv(camera_direction_uniform, 1, camera_direction);
+
 		glDrawArrays(GL_TRIANGLES, 0, 6);
 		SDL_GL_SwapWindow(window);
 	}
