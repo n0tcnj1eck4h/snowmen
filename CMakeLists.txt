@@ -6,7 +6,7 @@ add_executable(raymarcher src/main.c src/glad.c src/utils.c)
 
 add_subdirectory(SDL2)
 include_directories(${SDL2_SOURCE_DIR}/include)
-target_link_libraries(raymarcher PRIVATE SDL2 SDL2main)
+target_link_libraries(raymarcher PRIVATE SDL2-static SDL2main)
 
 find_library(MATH_LIBRARY m)
 if(MATH_LIBRARY)
